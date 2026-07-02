@@ -82,7 +82,8 @@ function closeModal() { $("#modal-wrap").classList.remove("open"); $("#modal-wra
 function addXP(amount, reason) {
   S.meta.xp += amount;
   S.xpLog.push({ date: todayStr(), amount, reason });
-  toast(`+${amount} XP — ${reason}`, "xp");
+  if (typeof showXPFloat === "function") showXPFloat(amount); else toast(`+${amount} XP — ${reason}`, "xp");
+  if (typeof playSound === "function") playSound("xp");
   checkLevelUp();
   save();
   refreshHeader();
@@ -96,26 +97,35 @@ function checkLevelUp() {
   const { level } = xpIntoLevel();
   if (level > S.meta.level) {
     S.meta.level = level;
-    toast(`🎉 LEVEL UP! You are now Level ${level} — "${titleForLevel(level)}"`, "levelup");
+    if (typeof playSound === "function") playSound("levelup");
+    if (typeof showLevelUpCelebration === "function") showLevelUpCelebration(level);
+    else toast(`🎉 LEVEL UP! You are now Level ${level} — "${titleForLevel(level)}"`, "levelup");
   }
 }
 function bumpStat(stat, amount) {
   S.stats[stat] = clamp((S.stats[stat] || 0) + amount, 0, 999);
   save();
 }
-function unlockBadge(id) {
+// reason is optional flavor text explaining WHY this unlocked — shown in the achievement popup.
+function unlockBadge(id, reason) {
   if (S.badges.includes(id)) return;
   S.badges.push(id);
   const b = BADGES.find(x => x.id === id);
-  toast(`🏅 Badge unlocked: ${b ? b.emoji + " " + b.name : id}`, "badge");
+  if (typeof queueAchievementPopup === "function") {
+    queueAchievementPopup({ icon: b ? b.emoji : "🏅", title: "Badge Unlocked: " + (b ? b.name : id),
+      reason: reason || `Earned through your progress in ${b ? b.cat : "your journey"}.` });
+  } else toast(`🏅 Badge unlocked: ${b ? b.emoji + " " + b.name : id}`, "badge");
   save();
 }
-function unlockAccessory(id) {
+function unlockAccessory(id, reason) {
   if (S.accessories.unlocked.includes(id)) return;
   S.accessories.unlocked.push(id);
   S.accessories.equipped.push(id);
   const a = ACCESSORIES.find(x => x.id === id);
-  toast(`✨ Accessory unlocked: ${a ? a.emoji + " " + a.name : id}`, "badge");
+  if (typeof queueAchievementPopup === "function") {
+    queueAchievementPopup({ icon: a ? a.emoji : "✨", title: "Accessory Unlocked: " + (a ? a.name : id),
+      reason: reason || (a ? a.desc : "New gear for your character.") });
+  } else toast(`✨ Accessory unlocked: ${a ? a.emoji + " " + a.name : id}`, "badge");
   save();
 }
 function bumpStreak(key, dateStr) {
@@ -124,11 +134,13 @@ function bumpStreak(key, dateStr) {
   if (last && daysBetween(last, dateStr) === 1) S.streaks[key] = (S.streaks[key] || 0) + 1;
   else S.streaks[key] = 1;
   S.streaks["last" + key.charAt(0).toUpperCase() + key.slice(1)] = dateStr;
-  if (key === "movement" && S.streaks.movement >= 7) unlockBadge("movement7");
-  if (key === "movement" && S.streaks.movement >= 7) unlockAccessory("shoes");
-  if (key === "quran" && S.streaks.quran >= 7) { unlockBadge("quran7"); }
-  if (key === "study" && S.streaks.study >= 5) unlockBadge("studystreak");
-  if (key === "content" && S.streaks.content >= 3) unlockBadge("contentstreak");
+  if (key === "movement" && S.streaks.movement >= 7) unlockBadge("movement7", "7-day movement streak.");
+  if (key === "movement" && S.streaks.movement >= 7) unlockAccessory("shoes", "7-day movement streak.");
+  if (key === "quran" && S.streaks.quran >= 7) unlockBadge("quran7", "7-day Qur'an revision streak.");
+  if (key === "study" && S.streaks.study >= 5) unlockBadge("studystreak", "5-day study streak.");
+  if (key === "content" && S.streaks.content >= 3) unlockBadge("contentstreak", "3-day content creation streak.");
+  if (key === "money" && S.streaks.money >= 7) unlockBadge("moneystreak", "7-day money tracking streak.");
+  if (key === "dailyQuests" && S.streaks.dailyQuests >= 7) unlockBadge("nozeroweek", "Completed every daily quest 7 days running.");
   save();
 }
 
@@ -193,26 +205,57 @@ function bindChecklist(containerEl, obj, cb) {
 }
 
 // ---------------------------------------------------------------------------
+// Scroll preservation
+// ---------------------------------------------------------------------------
+// The mobile "jump to top" bug: goTo() used to unconditionally call
+// scrollTo(0,0) on every render, but goTo(currentPage) is also how the app
+// refreshes the SAME page after a checkbox/form change (there's no partial
+// DOM patching — it just re-renders the page's HTML wholesale). That meant
+// every single checkbox tick reset the scroll position, which felt like the
+// page was reloading. Fix: only jump to top on a REAL navigation to a
+// different page; a same-page refresh preserves exactly where you were.
+function preserveScroll(callback) {
+  const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  callback();
+  // Two rAFs: first lets the new DOM finish layout, second lets mobile
+  // browsers' own scroll-anchoring settle before we pin the position back.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => window.scrollTo(0, scrollY));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 const PAGES = [
-  ["home", "🏠", "Home"], ["character", "🧙", "Character"], ["wealth", "🪙", "Wealth"],
+  ["home", "🏠", "Home"], ["character", "🧙", "Character"], ["lifemap", "🗺️", "Life Map"],
+  ["battlepass", "🎫", "Battle Pass"], ["wealth", "🪙", "Wealth"],
   ["social", "📷", "Creator"], ["spiritual", "🕌", "Iman"], ["health", "💪", "Training"],
   ["academics", "🎓", "Grade 11"], ["resume", "📄", "Achievements"], ["driving", "🚗", "Road to G2"],
   ["projects", "🧪", "Side Quests"], ["planner", "🗓️", "Planner"], ["meals", "🍽️", "Meals"],
-  ["journal", "📔", "Battle Log"], ["boss", "👑", "Boss Battle"], ["settings", "⚙️", "Settings"]
+  ["journal", "📔", "Battle Log"], ["boss", "👑", "Boss Battle"], ["coach", "🧠", "Coach"],
+  ["settings", "⚙️", "Settings"]
 ];
-let currentPage = "home";
+let currentPage = null; // null (not "home") so the very first goTo("home") at boot is treated as real navigation, not a same-page refresh
 function goTo(page) {
-  currentPage = page;
-  $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.page === page));
-  const renderer = { home: renderHome, character: renderCharacter, wealth: renderWealth, social: renderSocial,
-    spiritual: renderSpiritual, health: renderHealth, academics: renderAcademics, resume: renderResume,
-    driving: renderDriving, projects: renderProjects, planner: renderPlanner, meals: renderMeals,
-    journal: renderJournal, boss: renderBoss, settings: renderSettings }[page];
-  $("#page-content").innerHTML = `<div class="page fade-in">${renderer.html()}</div>`;
-  if (renderer.init) renderer.init();
-  window.scrollTo(0, 0);
+  const isSamePage = page === currentPage; // refresh-in-place (checkbox/form change), not real navigation
+  const doRender = () => {
+    currentPage = page;
+    $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.page === page));
+    const renderer = { home: renderHome, character: renderCharacter, lifemap: renderLifeMap, battlepass: renderBattlePass,
+      wealth: renderWealth, social: renderSocial, spiritual: renderSpiritual, health: renderHealth,
+      academics: renderAcademics, resume: renderResume, driving: renderDriving, projects: renderProjects,
+      planner: renderPlanner, meals: renderMeals, journal: renderJournal, boss: renderBoss, coach: renderCoach,
+      settings: renderSettings }[page];
+    $("#page-content").innerHTML = `<div class="page ${isSamePage ? "" : "fade-in"}">${renderer.html()}</div>`;
+    if (renderer.init) renderer.init();
+  };
+  if (isSamePage) {
+    preserveScroll(doRender); // just refreshing what's on screen — stay put
+  } else {
+    doRender();
+    window.scrollTo(0, 0); // genuine navigation to a different page — start at the top, like a fresh page
+  }
 }
 function refreshHeader() {
   const { level, into, need } = xpIntoLevel();
@@ -245,6 +288,7 @@ function toggleDailyQuest(date, qid) {
     if (q.cat === "Social") bumpStreak("content", date);
     const statMap = { Health: "health", Spiritual: "iman", Academic: "knowledge", Wealth: "wealth", Social: "creativity", Resume: "confidence", Project: "creativity", Discipline: "discipline" };
     if (statMap[q.cat]) bumpStat(statMap[q.cat], 1);
+    if (list.every(x => x.done)) bumpStreak("dailyQuests", date); // full clean-sweep streak
   }
   save();
 }
@@ -293,6 +337,27 @@ function suggestAction() {
 }
 
 // ---------------------------------------------------------------------------
+// Daily login/check-in reward — independent of the habit streaks above.
+// Missing a day only resets THIS streak back to 1 on next claim; nothing else
+// in the app is touched, per the "don't punish everything" requirement.
+// ---------------------------------------------------------------------------
+function claimDailyCheckin() {
+  const today = todayStr();
+  if (S.checkin.lastClaim === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  S.checkin.streak = (S.checkin.lastClaim === yesterday) ? S.checkin.streak + 1 : 1;
+  S.checkin.lastClaim = today;
+  const bonus = Math.min(7, S.checkin.streak) * 3;
+  const xpAmount = 10 + bonus;
+  addXP(xpAmount, "Daily check-in (streak " + S.checkin.streak + ")");
+  if (typeof queueAchievementPopup === "function") {
+    queueAchievementPopup({ icon: "🎁", title: "Daily Reward Claimed!", reason: `Check-in streak: ${S.checkin.streak} day${S.checkin.streak === 1 ? "" : "s"}`, xp: xpAmount });
+  }
+  save();
+  goTo("home");
+}
+
+// ---------------------------------------------------------------------------
 // PAGE: HOME
 // ---------------------------------------------------------------------------
 const renderHome = {
@@ -306,6 +371,11 @@ const renderHome = {
     const doneCount = quests.filter(q => q.done).length;
     const shoot = S.social.paidShoots.find(s => s.id === "amggtr");
     const g2Days = daysBetween(today, S.driving.g2EligibleDate);
+    const canClaimDaily = S.checkin.lastClaim !== today;
+    const isSunday = new Date(today + "T00:00:00").getDay() === 0;
+    const wk = weekStart(today);
+    const coachReady = isSunday && !S.coachReviews[wk];
+    const flame = typeof flameFor === "function" ? flameFor : () => "";
 
     return `
     <div class="hero card">
@@ -318,6 +388,13 @@ const renderHome = {
       </div>
     </div>
 
+    ${canClaimDaily ? card("🎁 Daily Check-In", `
+      <p class="muted">A separate streak just for showing up. Current check-in streak: <b>${S.checkin.streak}</b> day${S.checkin.streak === 1 ? "" : "s"}. Missing a day only resets this streak — nothing else.</p>
+      <button class="btn btn-primary" id="btn-claim-daily">🎁 Claim Daily Reward</button>`, "checkin-card") : ""}
+
+    ${coachReady ? card("🧠 Sunday Coach Review is ready", `<p class="muted">It's Sunday — your rule-based weekly review is ready to generate.</p>
+      <button class="btn btn-primary" data-goto="coach">Open Coach Review</button>`) : ""}
+
     <div class="grid-2">
       ${card("📌 Important This Week", `
         <ul class="mini-list">
@@ -327,10 +404,12 @@ const renderHome = {
           <li>🎓 Grade 11 load: BAF3M, CIE3M, ENG3U, MCR3U, HRF3O, SCH3U, SPH3U, +1</li>
         </ul>`)}
       ${card("🔥 Streaks", `
-        <div class="streak-row"><span>🏃 Movement</span><b>${S.streaks.movement || 0}d</b></div>
-        <div class="streak-row"><span>🕌 Qur'an</span><b>${S.streaks.quran || 0}d</b></div>
-        <div class="streak-row"><span>📚 Study</span><b>${S.streaks.study || 0}d</b></div>
-        <div class="streak-row"><span>📷 Content</span><b>${S.streaks.content || 0}d</b></div>`)}
+        <div class="streak-row"><span>🏃 Movement</span>${flame(S.streaks.movement || 0)}<b>${S.streaks.movement || 0}d</b></div>
+        <div class="streak-row"><span>🕌 Qur'an</span>${flame(S.streaks.quran || 0)}<b>${S.streaks.quran || 0}d</b></div>
+        <div class="streak-row"><span>📚 Study</span>${flame(S.streaks.study || 0)}<b>${S.streaks.study || 0}d</b></div>
+        <div class="streak-row"><span>📷 Content</span>${flame(S.streaks.content || 0)}<b>${S.streaks.content || 0}d</b></div>
+        <div class="streak-row"><span>🪙 Money</span>${flame(S.streaks.money || 0)}<b>${S.streaks.money || 0}d</b></div>
+        <div class="streak-row"><span>✅ Daily Quests</span>${flame(S.streaks.dailyQuests || 0)}<b>${S.streaks.dailyQuests || 0}d</b></div>`)}
     </div>
 
     ${card("🗡️ Today's Quests (" + doneCount + "/" + quests.length + ")", `
@@ -353,6 +432,7 @@ const renderHome = {
   init() {
     $$("[data-qid]").forEach(cb => cb.onchange = () => { toggleDailyQuest(todayStr(), cb.dataset.qid); goTo("home"); });
     $$("[data-goto]").forEach(b => b.onclick = () => goTo(b.dataset.goto));
+    if ($("#btn-claim-daily")) $("#btn-claim-daily").onclick = claimDailyCheckin;
     $("#btn-suggest").onclick = () => openModal("What should I do now?", `<p>${esc(suggestAction())}</p>`);
     $("#btn-quickwin").onclick = () => openModal("Log a quick win", `
       <form id="qw-form"><label class="field field-wide">What did you do?<input type="text" name="text" required></label>
@@ -374,8 +454,12 @@ const renderCharacter = {
     <div class="char-card card">
       <div class="char-avatar">🧑 ${equippedEmojis}</div>
       <h2>${esc(S.meta.name)}</h2>
-      <p class="muted">Level ${level} — "${titleForLevel(level)}"</p>
+      <p class="muted">Level ${level} — "${titleForLevel(level)}"${S.meta.equippedTitle ? ` <span class="bp-title-chip">${esc(S.meta.equippedTitle)}</span>` : ""}</p>
       ${progressBar(into, need, "XP")}
+      ${S.meta.unlockedTitles.length ? `<label class="field">Battle Pass title<select id="set-equipped-title">
+        <option value="">None</option>
+        ${S.meta.unlockedTitles.map(t => `<option value="${esc(t)}" ${S.meta.equippedTitle === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+      </select></label>` : ""}
       <div class="stat-grid">${Object.entries(S.stats).map(([k, v]) => `
         <div class="stat-chip"><span class="stat-name">${k}</span><span class="stat-val">${v}</span></div>`).join("")}</div>
     </div>
@@ -401,6 +485,7 @@ const renderCharacter = {
       btn.onclick = () => { const id = el.dataset.acc; const i = S.accessories.equipped.indexOf(id);
         if (i >= 0) S.accessories.equipped.splice(i, 1); else S.accessories.equipped.push(id);
         save(); goTo("character"); }; });
+    if ($("#set-equipped-title")) $("#set-equipped-title").onchange = e => { S.meta.equippedTitle = e.target.value || null; save(); goTo("character"); };
   }
 };
 
@@ -442,6 +527,7 @@ const renderWealth = {
       onAdd: (row) => {
         if (row.type === "saved") { w.savings += row.amount; addXP(S.meta.xpValues.savingsLog, `Saved $${row.amount}`); bumpStat("wealth", 2); checkWealthAchievements(); }
         if (row.type === "expense" && row.category === "Random impulse") toast("Impulse detected. Wait 48 hours before pretending this is a need.", "warn");
+        bumpStreak("money", row.date || todayStr()); // any logged transaction counts as "tracking money" today
         save(); goTo("wealth");
       }
     });
@@ -1176,7 +1262,12 @@ const renderSettings = {
 
     ${card("🎨 Display", `
       <label class="field-check"><input type="checkbox" id="set-dark" ${S.meta.darkMode ? "checked" : ""}> Dark mode</label>
-      <label class="field-check"><input type="checkbox" id="set-reduced" ${S.meta.reducedMotion ? "checked" : ""}> Reduced motion</label>`)}
+      <label class="field-check"><input type="checkbox" id="set-reduced" ${S.meta.reducedMotion ? "checked" : ""}> Reduced motion</label>
+      <label class="field-check"><input type="checkbox" id="set-sound" ${S.meta.soundEnabled ? "checked" : ""}> Sound effects</label>
+      ${S.meta.unlockedThemes.length ? `<label class="field">Battle Pass cosmetic theme<select id="set-theme">
+        <option value="">Default</option>
+        ${S.meta.unlockedThemes.map(t => `<option value="${esc(t)}" ${S.meta.activeTheme === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+      </select></label>` : `<p class="muted">Unlock cosmetic themes through the Summer Battle Pass.</p>`}`)}
 
     ${card("💾 Data Management", `
       <button class="btn" id="export-btn">Export backup (JSON)</button>
@@ -1196,6 +1287,8 @@ const renderSettings = {
     $$("[data-xpkey]").forEach(inp => inp.onchange = () => { S.meta.xpValues[inp.dataset.xpkey] = Number(inp.value); save(); });
     $("#set-dark").onchange = e => { S.meta.darkMode = e.target.checked; applyTheme(); save(); };
     $("#set-reduced").onchange = e => { S.meta.reducedMotion = e.target.checked; applyTheme(); save(); };
+    $("#set-sound").onchange = e => { S.meta.soundEnabled = e.target.checked; save(); if (e.target.checked && typeof playSound === "function") playSound("unlock"); };
+    if ($("#set-theme")) $("#set-theme").onchange = e => { S.meta.activeTheme = e.target.value || null; applyTheme(); save(); };
     $("#export-btn").onclick = () => {
       const blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -1219,9 +1312,12 @@ const renderSettings = {
 // ---------------------------------------------------------------------------
 // Theme
 // ---------------------------------------------------------------------------
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
 function applyTheme() {
   document.body.classList.toggle("light", !S.meta.darkMode);
   document.body.classList.toggle("reduced-motion", S.meta.reducedMotion);
+  if (typeof BATTLE_PASS_THEMES !== "undefined") BATTLE_PASS_THEMES.forEach(t => document.body.classList.remove("theme-" + slugify(t)));
+  if (S.meta.activeTheme) document.body.classList.add("theme-" + slugify(S.meta.activeTheme));
 }
 
 // ---------------------------------------------------------------------------

@@ -117,7 +117,67 @@ const BADGES = [
   { id: "sidequest", name: "Side Quest Complete", emoji: "🧩", cat: "Projects" },
   { id: "builder", name: "Builder", emoji: "🔧", cat: "Projects" },
   { id: "bossweek", name: "Boss Battle Winner", emoji: "👑", cat: "General" },
-  { id: "legend", name: "Summer Legend", emoji: "🦸", cat: "General" }
+  { id: "legend", name: "Summer Legend", emoji: "🦸", cat: "General" },
+  { id: "moneystreak", name: "7-Day Money Tracking Streak", emoji: "📒", cat: "Wealth" },
+  { id: "nozeroweek", name: "No Zero Week", emoji: "🌟", cat: "General" },
+  { id: "bp25", name: "Battle Pass — Tier 25", emoji: "🎫", cat: "General" },
+  { id: "bp50", name: "Battle Pass — Tier 50", emoji: "🎟️", cat: "General" },
+  { id: "bp75", name: "Battle Pass — Tier 75", emoji: "🏵️", cat: "General" },
+  { id: "bp100", name: "Battle Pass — Tier 100", emoji: "💯", cat: "General" }
+];
+
+// ---- Summer Battle Pass: 100 tiers, unlocked by cumulative XP ----
+const BATTLE_PASS_XP_PER_LEVEL = 60;
+const BATTLE_PASS_THEMES = ["Neon Nights", "Golden Hour", "Ocean Breeze", "Desert Heat", "Midnight Grind", "Sunrise Focus"];
+const BATTLE_PASS_TITLES = [
+  "Trailblazer", "Iron Will", "Momentum", "Relentless", "Sharp Shooter", "Night Owl", "Early Bird",
+  "Closer", "Architect", "Unstoppable", "Focused Mind", "Grind Mode", "Clutch", "Consistent", "Locked In"
+];
+function buildBattlePassLevels() {
+  const levels = [];
+  let themeI = 0, titleI = 0, accI = 0;
+  for (let lvl = 1; lvl <= 100; lvl++) {
+    let reward;
+    if (lvl % 25 === 0) {
+      reward = { type: "badge", badgeId: "bp" + lvl, label: "Battle Pass Badge — Tier " + lvl };
+    } else if (lvl % 10 === 0) {
+      const acc = ACCESSORIES[accI % ACCESSORIES.length]; accI++;
+      reward = { type: "accessory", accessoryId: acc.id, label: "Accessory: " + acc.name };
+    } else {
+      const t = ["xp", "title", "theme", "questpack"][lvl % 4];
+      if (t === "xp") reward = { type: "xp", xp: 20 + (lvl % 3) * 10, label: "Bonus XP" };
+      else if (t === "title") reward = { type: "title", label: BATTLE_PASS_TITLES[titleI++ % BATTLE_PASS_TITLES.length] };
+      else if (t === "theme") reward = { type: "theme", label: BATTLE_PASS_THEMES[themeI++ % BATTLE_PASS_THEMES.length] };
+      else reward = { type: "questpack", label: "Bonus Quest Pack" };
+    }
+    levels.push({ level: lvl, xpNeeded: lvl * BATTLE_PASS_XP_PER_LEVEL, reward });
+  }
+  return levels;
+}
+const BATTLE_PASS_LEVELS = buildBattlePassLevels();
+
+// ---- Life Map regions: each maps to an existing page + a real completion % derived from live state ----
+const REGION_CAT_MAP = {
+  health: ["Health"], wealth: ["Wealth"], iman: ["Spiritual"], creator: ["Social"],
+  academy: ["Academic", "Academics"], resume: ["Resume"], g2: ["Driving"], sidequest: ["Projects"]
+};
+const REGIONS = [
+  { id: "health", name: "Health Kingdom", emoji: "💪", page: "health",
+    pct: () => pct(BADGES.filter(b => b.cat === "Health" && S.badges.includes(b.id)).length, BADGES.filter(b => b.cat === "Health").length) },
+  { id: "wealth", name: "Wealth Vault", emoji: "🪙", page: "wealth",
+    pct: () => pct(S.wealth.savings, S.wealth.goal) },
+  { id: "iman", name: "Iman Oasis", emoji: "🕌", page: "spiritual",
+    pct: () => pct(Object.values(S.spiritual.juz30).filter(s => ["Good", "Strong", "Recited to someone"].includes(s.status)).length, JUZ30_SURAHS.length) },
+  { id: "creator", name: "Creator Garage", emoji: "📷", page: "social",
+    pct: () => Math.round((pct(S.social.followers, S.social.followerGoal) + pct(S.social.postsThisYear, S.social.postGoal)) / 2) },
+  { id: "academy", name: "Grade 11 Academy", emoji: "🎓", page: "academics",
+    pct: () => { const totals = COURSES.map(c => pct(Object.values(S.academics.courses[c.code].topicsDone).filter(Boolean).length, c.topics.length)); return Math.round(totals.reduce((a, b) => a + b, 0) / totals.length); } },
+  { id: "resume", name: "Resume Hall", emoji: "📄", page: "resume",
+    pct: () => pct(Object.values(S.resume.resumeChecklist).filter(Boolean).length, Object.keys(S.resume.resumeChecklist).length) },
+  { id: "g2", name: "Road to G2", emoji: "🚗", page: "driving",
+    pct: () => pct(Object.values(S.driving.g2Checklist).filter(Boolean).length, G2_CHECKLIST.length) },
+  { id: "sidequest", name: "Side Quest Lab", emoji: "🧪", page: "projects",
+    pct: () => pct(S.projects.list.filter(p => p.status === "Completed").length, Math.max(1, S.projects.list.length)) }
 ];
 
 // ---- Punishment pool (safe, annoying, never harmful) ----
@@ -418,7 +478,9 @@ function buildDefaultState() {
       xpValues: { ...DEFAULT_XP_VALUES },
       darkMode: true, reducedMotion: false,
       lastBossBattleWeek: null,
-      lastModified: 0 // ms timestamp, set on every real save — used to resolve cloud sync conflicts
+      lastModified: 0, // ms timestamp, set on every real save — used to resolve cloud sync conflicts
+      soundEnabled: true,
+      unlockedTitles: [], unlockedThemes: [], activeTheme: null, equippedTitle: null
     },
     stats: { discipline: 10, health: 10, wealth: 10, iman: 10, creativity: 10, knowledge: 10, confidence: 10 },
     accessories: { unlocked: [], equipped: [] },
@@ -428,7 +490,11 @@ function buildDefaultState() {
       daily: {}, // date -> [{id,cat,text,done}]
       weeklyChainProgress: {} // chainId -> {stepIndex: bool}
     },
-    streaks: { movement: 0, quran: 0, salah: 0, content: 0, study: 0, lastMovement: null, lastQuran: null, lastStudy: null, lastContent: null, lastSalah: null },
+    checkin: { lastClaim: null, streak: 0 }, // daily login reward — independent of quest/habit streaks
+    battlePass: { claimedLevels: [] },
+    coachReviews: {}, // weekStart date -> generated weekly review object
+    streaks: { movement: 0, quran: 0, salah: 0, content: 0, study: 0, money: 0, dailyQuests: 0,
+      lastMovement: null, lastQuran: null, lastStudy: null, lastContent: null, lastSalah: null, lastMoney: null, lastDailyQuests: null },
     focusOfWeek: "Repair Juz 30 + build daily movement habit",
     wealth: {
       savings: 0, goal: 500,

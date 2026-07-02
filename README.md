@@ -1,6 +1,6 @@
 # Summer Level-Up 2026
 
-A  local-first "level up my life" dashboard: quests, XP, streaks, badges, and trackers for wealth, photography/content, Qur'an revision, health, Grade 11 prep, resume/achievements, driving, projects, planning, meals, and journaling.
+A local-first "level up my life" dashboard: quests, XP, streaks, badges, and trackers for wealth, photography/content, Qur'an revision, health, Grade 11 prep, resume/achievements, driving, projects, planning, meals, and journaling.
 
 - **Works fully offline** on localStorage — no account needed.
 - **Optional cloud sync** (Firebase Auth + Firestore) to keep the same progress on your laptop and phone.
