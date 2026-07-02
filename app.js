@@ -1248,7 +1248,8 @@ function cloudSyncCardHtml() {
 // ---------------------------------------------------------------------------
 const renderSettings = {
   html() {
-    return `${card("☁️ Cloud Sync", cloudSyncCardHtml())}
+    return `${card("📲 Install App", typeof pwaInstallCardHtml === "function" ? pwaInstallCardHtml() : `<p class="muted">PWA install support not loaded.</p>`)}
+    ${card("☁️ Cloud Sync", cloudSyncCardHtml())}
     ${card("⚙️ Profile & Goals", `
       <label class="field">Name<input id="set-name" value="${esc(S.meta.name)}"></label>
       <label class="field">Summer start date<input type="date" id="set-summer" value="${S.meta.summerStart}"></label>
@@ -1275,6 +1276,7 @@ const renderSettings = {
       <button class="btn btn-danger" id="reset-btn">Reset all data</button>`)}`;
   },
   init() {
+    if (typeof bindPwaInstallCard === "function") bindPwaInstallCard();
     if ($("#cloud-signin")) $("#cloud-signin").onclick = signInGoogle;
     if ($("#cloud-signout")) $("#cloud-signout").onclick = signOutCloud;
     if ($("#cloud-sync-now")) $("#cloud-sync-now").onclick = manualSync;

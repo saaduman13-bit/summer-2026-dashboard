@@ -321,3 +321,25 @@ body.theme-ocean-breeze { --accent: #2fd0e0; --accent-2: #4a90ff; --gold: #7fe0c
 body.theme-desert-heat { --accent: #e0682f; --accent-2: #f0b23d; --gold: #ffcf6b; }
 body.theme-midnight-grind { --accent: #7a5cff; --accent-2: #4a4fff; --gold: #b39cff; }
 body.theme-sunrise-focus { --accent: #ff6f61; --accent-2: #ffb26b; --gold: #ffd97d; }
+
+/* ============================================================================
+   PWA: install / update banners + manual-install instructions block
+   ============================================================================ */
+.pwa-banner {
+  position: fixed; left: 50%; bottom: 14px; z-index: 250; max-width: 420px; width: calc(100% - 32px);
+  transform: translate(-50%, 20px); opacity: 0; transition: transform .3s ease, opacity .3s ease;
+  background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; box-shadow: 0 8px 24px rgba(0,0,0,0.4); font-size: 0.85rem;
+}
+.pwa-banner.show { transform: translate(-50%, 0); opacity: 1; }
+.pwa-banner span { flex: 1; min-width: 160px; }
+body.reduced-motion .pwa-banner { transition: opacity .2s; }
+
+.pwa-instructions { margin-top: 10px; font-size: 0.84rem; }
+.pwa-instructions summary { cursor: pointer; color: var(--accent-2); font-weight: 600; padding: 4px 0; }
+.pwa-instructions p { margin: 8px 0; color: var(--muted); }
+.pwa-instructions p b { color: var(--text); }
+
+@media (max-width: 860px) {
+  .pwa-banner { bottom: 78px; } /* clear the mobile bottom nav */
+}

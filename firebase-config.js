@@ -17,10 +17,10 @@
    ============================================================================ */
 
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDpIXAsIpupE8hDP-y0H7zDOb_6h8n9uKo",
+  authDomain: "summer-dashboard-c53b4.firebaseapp.com",
+  projectId: "summer-dashboard-c53b4",
+  storageBucket: "summer-dashboard-c53b4.firebasestorage.app",
+  messagingSenderId: "554536456271",
+  appId: "1:554536456271:web:521ac3e984465b6606da3a"
 };

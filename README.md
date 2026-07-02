@@ -34,11 +34,40 @@ Double-click `index.html`. That's it — it opens in your browser and works comp
 
 All the file references in this project (`styles.css`, `app.js`, etc.) are relative paths, so it works whether it's hosted at the domain root or under a `/repo-name/` subpath — no config changes needed.
 
-> Without Firebase configured (Section 3), the GitHub Pages version still works great — it just won't sync between devices; each device/browser keeps its own local save.
+> Without Firebase configured (Section 4), the GitHub Pages version still works great — it just won't sync between devices; each device/browser keeps its own local save.
 
 ---
 
-## 3. Firebase Setup (optional — enables syncing across devices)
+## 3. Install as an App (PWA)
+
+This is a full Progressive Web App: it can be installed to your home screen / app list and works offline once installed, with real app icons and no browser address bar.
+
+**Note:** the service worker (offline caching + installability) only works when the app is served over `http://` or `https://` — that means **GitHub Pages, or a local dev server**. If you just double-click `index.html` (`file://`), the app still runs perfectly (localStorage, quests, everything), it just skips the install/offline-cache layer, since browsers don't allow service workers on `file://` URLs.
+
+### 📱 iPhone / iPad (Safari)
+1. Open your GitHub Pages URL in **Safari** (must be Safari, not Chrome — iOS only allows Safari to install PWAs).
+2. Tap the **Share** icon (square with an arrow pointing up), in the bottom toolbar.
+3. Scroll down and tap **Add to Home Screen**.
+4. Tap **Add** (top right). The app icon now appears on your home screen and opens full-screen, no Safari UI.
+
+### 🤖 Android (Chrome)
+1. Open your GitHub Pages URL in Chrome.
+2. You'll usually see an **Install** banner automatically, or go to **Settings → Install App** inside the app itself and tap the **📲 Install App** button.
+3. If neither appears, tap Chrome's **⋮** menu → **Install app** (or **Add to Home screen**) → **Install**.
+
+### 🖥️ Windows (Chrome or Edge)
+1. Open your GitHub Pages URL.
+2. Click the **install icon** (a small monitor with a down arrow, or a ⊕) at the right end of the address bar → **Install**.
+3. Or use **Settings → Install App** inside the app for a one-click button, or the browser's **⋮ / ···** menu → "Install Summer Level-Up" (Chrome) / "Apps → Install this site as an app" (Edge).
+
+### How updates work after installing
+When you push a new version to GitHub Pages, installed devices don't just silently swap to it mid-use — the new version downloads quietly in the background, and next time you open the app you'll see a **"🔄 A new version is ready — Update Now"** banner. Tap it whenever you're ready, and it reloads with the new version. If you ignore it, the app keeps working fine on the old cached version until you do.
+
+If you ever need to force a refresh (e.g. after editing core files yourself), bump `CACHE_VERSION` at the top of `service-worker.js` — that's what tells browsers "this is a new version, replace the old cache."
+
+---
+
+## 4. Firebase Setup (optional — enables syncing across devices)
 
 This lets you sign in with Google on your laptop and your phone and see the same XP, quests, and logs on both. Takes about 10 minutes, free tier is more than enough for personal use.
 
@@ -95,7 +124,7 @@ This lets you sign in with Google on your laptop and your phone and see the same
 
 ---
 
-## 4. How syncing works
+## 5. How syncing works
 
 - Every change saves to **localStorage immediately** — that's always the source of truth for what you see.
 - If you're signed in, changes also get pushed to Firestore a couple seconds after you stop editing (debounced, so it's not spamming writes).
@@ -108,7 +137,7 @@ This lets you sign in with Google on your laptop and your phone and see the same
 
 ---
 
-## 5. Backups (JSON export/import)
+## 6. Backups (JSON export/import)
 
 Independent of cloud sync — always available in **Settings → Data Management**:
 - **Export backup (JSON)** downloads a full snapshot of your progress.
@@ -118,17 +147,23 @@ Do this occasionally regardless of cloud sync, as a personal safety net.
 
 ---
 
-## 6. Where to customize
+## 7. Where to customize
 
-- `data.js` — default goals, XP values, quests, badges, courses, punishments, seed data.
+- `data.js` — default goals, XP values, quests, badges, courses, punishments, seed data, Battle Pass/Life Map config.
 - `app.js` — page logic and rendering (search for `PAGE:` comments).
+- `gamefeel.js` — sounds, XP animations, achievement popups, Battle Pass, Life Map, Coach Review.
 - `cloud.js` — sync/auth logic (only runs if `firebase-config.js` is filled in).
 - `firebase-config.js` — your Firebase project keys.
+- `pwa.js` / `service-worker.js` — install prompt, offline caching, update banner. Bump `CACHE_VERSION` in `service-worker.js` after editing any core file.
+- `manifest.json` — app name, colors, icons.
+- `icons/` — app icons. Replace with your own artwork any time (keep the same filenames/sizes, or update the references in `manifest.json` and `index.html`).
 - `styles.css` — theme colors (edit the `:root` variables at the top).
 
-## 7. Limitations
+## 8. Limitations
 
 - Firestore's free tier and the 1MB-per-document limit are both far beyond what a summer's worth of logging needs, but if you log extremely heavily for months on end, keep it in mind.
 - Conflict resolution is manual (you pick a side) — there's no automatic field-by-field merge, to avoid silently mixing up two different days' data.
 - Google Sign-In is the only auth method (kept simple on purpose — no password reset flows to worry about).
 - No push notifications/reminders — it's a tool you open and use.
+- The service worker/install flow requires `http://` or `https://` (GitHub Pages or a local dev server) — it's inert on `file://`, though the rest of the app works fine there.
+- iOS only allows installing PWAs from Safari specifically — Chrome/Firefox on iPhone can't trigger "Add to Home Screen" (this is an Apple platform restriction, not something this app controls).

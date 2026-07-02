@@ -2,8 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Summer Level-Up 2026</title>
+
+<!-- PWA: manifest + theme color -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b0f1a">
+
+<!-- Android/Chrome installability -->
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS Safari "Add to Home Screen" support (iOS ignores manifest.json entirely) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Level-Up">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,12 +30,20 @@
   ================================
   HOW TO OPEN LOCALLY:
     Double-click index.html to open it in your browser. No install needed.
+    (The service worker only activates over http/https, so double-clicking
+    the file directly still works fine — it just runs without offline caching
+    until you serve it over a server or GitHub Pages.)
 
   HOW DATA IS SAVED:
     Always saved to this browser's localStorage first (works fully offline).
     Optionally, sign in with Google in Settings to also sync it to Firestore
     so the same progress shows up on your laptop and phone. Cloud sync is
     off by default until you configure firebase-config.js (see README.md).
+
+  INSTALLING AS AN APP:
+    Settings -> "Install App" — on supported browsers (Android Chrome,
+    Windows Chrome/Edge) there's a one-tap install button; iPhone Safari
+    requires the manual Share -> Add to Home Screen steps shown there too.
 
   HOW TO BACK UP:
     Settings -> "Export backup (JSON)" downloads a snapshot any time, cloud
@@ -31,6 +57,7 @@
     - data.js: default goals, XP values, quests, badges, courses, punishments.
     - app.js: page logic and rendering (search for the PAGE comments).
     - cloud.js: sync/auth logic. firebase-config.js: your Firebase project keys.
+    - pwa.js / service-worker.js: install prompt, offline caching, update flow.
     - styles.css: colors/theme (edit the :root variables at the top).
 -->
 <div id="app-shell">
@@ -68,6 +95,7 @@
 <script src="firebase-config.js"></script>
 <script src="cloud.js"></script>
 <script src="gamefeel.js"></script>
+<script src="pwa.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
