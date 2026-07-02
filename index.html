@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summer Level-Up 2026</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!--
+  README (short version) — see README.md in this folder for full setup steps.
+  ================================
+  HOW TO OPEN LOCALLY:
+    Double-click index.html to open it in your browser. No install needed.
+
+  HOW DATA IS SAVED:
+    Always saved to this browser's localStorage first (works fully offline).
+    Optionally, sign in with Google in Settings to also sync it to Firestore
+    so the same progress shows up on your laptop and phone. Cloud sync is
+    off by default until you configure firebase-config.js (see README.md).
+
+  HOW TO BACK UP:
+    Settings -> "Export backup (JSON)" downloads a snapshot any time, cloud
+    sync enabled or not. Use "Import backup" to restore it.
+
+  DEPLOYING TO GITHUB PAGES:
+    Push this folder to a GitHub repo, then enable Pages in repo Settings.
+    Full steps are in README.md.
+
+  WHERE TO CUSTOMIZE:
+    - data.js: default goals, XP values, quests, badges, courses, punishments.
+    - app.js: page logic and rendering (search for the PAGE comments).
+    - cloud.js: sync/auth logic. firebase-config.js: your Firebase project keys.
+    - styles.css: colors/theme (edit the :root variables at the top).
+-->
+<div id="app-shell">
+  <aside id="sidebar">
+    <div class="brand">🎮 Summer Level-Up</div>
+    <nav id="nav-list"></nav>
+  </aside>
+
+  <div id="main-col">
+    <header id="topbar">
+      <div class="hdr-char">
+        <span id="hdr-level" class="chip">Lv.1</span>
+        <span id="hdr-title" class="muted">Summer Noob</span>
+      </div>
+      <div class="hdr-xp-wrap">
+        <div class="hdr-xp-track"><div id="hdr-xpbar" class="hdr-xp-fill"></div></div>
+        <div id="hdr-xptext" class="hdr-xp-text">0/100 XP</div>
+      </div>
+      <span id="sync-badge" class="sync-badge sync-local-only" title="Cloud sync status — configure in Settings">💾 Local only</span>
+    </header>
+    <main id="page-content"></main>
+  </div>
+</div>
+
+<div id="modal-wrap"></div>
+<div id="toast-box"></div>
+
+<!-- Firebase (optional, for cross-device cloud sync). If these fail to load
+     (e.g. offline, or blocked), the app falls back to local-only mode automatically. -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script src="data.js"></script>
+<script src="firebase-config.js"></script>
+<script src="cloud.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
